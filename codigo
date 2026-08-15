@@ -1,0 +1,625 @@
+import { useState, useEffect, useMemo } from "react";
+import {
+  Package, TrendingUp, TrendingDown, Plus, Trash2, Pencil,
+  AlertTriangle, X, Check, ShoppingCart, Boxes, Receipt, Zap
+} from "lucide-react";
+
+const FONTS = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+`;
+
+const C = {
+  bg: "#0D0F13",
+  surface: "#171B22",
+  surfaceAlt: "#1D222C",
+  border: "#2B303C",
+  borderLight: "#363C4A",
+  text: "#EDEAE0",
+  textDim: "#8891A3",
+  textFaint: "#5A6070",
+  amber: "#E8A33D",
+  amberDim: "#8A6428",
+  green: "#5FBE8A",
+  greenDim: "#2E4A3B",
+  red: "#E0664B",
+  redDim: "#4A2E29",
+};
+
+const fontDisplay = { fontFamily: "'Space Grotesk', sans-serif" };
+const fontMono = { fontFamily: "'JetBrains Mono', monospace" };
+
+const STORAGE_KEY = "gigatech_data_v1";
+
+const CATEGORIAS_EGRESO = ["Compra de mercadería", "Alquiler", "Servicios", "Sueldos", "Impuestos", "Otro"];
+const CATEGORIAS_INGRESO = ["Venta", "Otro ingreso"];
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function money(n) {
+  const v = Number(n) || 0;
+  return v.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fmtDate(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// ---------- Small UI atoms ----------
+
+function PunchEdge() {
+  return (
+    <div
+      style={{
+        height: 10,
+        backgroundImage: `radial-gradient(circle, ${C.bg} 3.2px, transparent 3.6px)`,
+        backgroundSize: "14px 14px",
+        backgroundPosition: "-7px center",
+      }}
+    />
+  );
+}
+
+function Tab({ active, onClick, icon: Icon, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg transition-colors"
+      style={{
+        background: active ? C.surfaceAlt : "transparent",
+        border: `1px solid ${active ? C.borderLight : "transparent"}`,
+        color: active ? C.amber : C.textDim,
+      }}
+    >
+      <Icon size={16} strokeWidth={2} />
+      <span className="text-sm font-medium" style={fontDisplay}>{label}</span>
+    </button>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs uppercase tracking-wider" style={{ ...fontMono, color: C.textFaint }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const inputStyle = {
+  ...fontMono,
+  background: C.bg,
+  border: `1px solid ${C.border}`,
+  color: C.text,
+  borderRadius: 8,
+  padding: "8px 10px",
+  fontSize: 14,
+  outline: "none",
+};
+
+function Input(props) {
+  return <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />;
+}
+function Select(props) {
+  return <select {...props} style={{ ...inputStyle, ...(props.style || {}) }} />;
+}
+
+function Btn({ children, onClick, variant = "primary", type = "button", small, disabled }) {
+  const styles = {
+    primary: { background: C.amber, color: "#1A1200", border: `1px solid ${C.amber}` },
+    ghost: { background: "transparent", color: C.textDim, border: `1px solid ${C.border}` },
+    danger: { background: "transparent", color: C.red, border: `1px solid ${C.redDim}` },
+    green: { background: C.green, color: "#0D2016", border: `1px solid ${C.green}` },
+  };
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex items-center justify-center gap-1.5 rounded-lg font-medium transition-opacity ${small ? "px-2.5 py-1.5 text-xs" : "px-4 py-2 text-sm"}`}
+      style={{ ...fontDisplay, ...styles[variant], opacity: disabled ? 0.4 : 1, cursor: disabled ? "not-allowed" : "pointer" }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ---------- Main App ----------
+
+export default function App() {
+  const [loaded, setLoaded] = useState(false);
+  const [tab, setTab] = useState("resumen");
+  const [products, setProducts] = useState([]);
+  const [movements, setMovements] = useState([]);
+  const [saveError, setSaveError] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.storage.get(STORAGE_KEY, false);
+        if (res && res.value) {
+          const data = JSON.parse(res.value);
+          setProducts(data.products || []);
+          setMovements(data.movements || []);
+        }
+      } catch (e) {
+        // no data yet
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      try {
+        const result = await window.storage.set(
+          STORAGE_KEY,
+          JSON.stringify({ products, movements }),
+          false
+        );
+        setSaveError(!result);
+      } catch (e) {
+        setSaveError(true);
+      }
+    })();
+  }, [products, movements, loaded]);
+
+  const totals = useMemo(() => {
+    const ingresos = movements.filter(m => m.type === "ingreso").reduce((a, m) => a + m.amount, 0);
+    const egresos = movements.filter(m => m.type === "egreso").reduce((a, m) => a + m.amount, 0);
+    const valorStockCosto = products.reduce((a, p) => a + p.quantity * p.costPrice, 0);
+    const valorStockVenta = products.reduce((a, p) => a + p.quantity * p.salePrice, 0);
+    return { ingresos, egresos, ganancia: ingresos - egresos, valorStockCosto, valorStockVenta };
+  }, [movements, products]);
+
+  const lowStock = products.filter(p => p.quantity <= (p.minStock ?? 3));
+
+  function addProduct(p) {
+    setProducts(prev => [...prev, { id: uid(), ...p }]);
+  }
+  function updateProduct(id, patch) {
+    setProducts(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
+  }
+  function deleteProduct(id) {
+    setProducts(prev => prev.filter(p => p.id !== id));
+  }
+  function addMovement(m) {
+    setMovements(prev => [{ id: uid(), date: todayISO(), ...m }, ...prev]);
+  }
+  function deleteMovement(id) {
+    setMovements(prev => prev.filter(m => m.id !== id));
+  }
+  function registrarVenta(product, qty) {
+    const cantidad = Math.min(qty, product.quantity);
+    if (cantidad <= 0) return;
+    updateProduct(product.id, { quantity: product.quantity - cantidad });
+    addMovement({
+      type: "ingreso",
+      amount: cantidad * product.salePrice,
+      description: `Venta: ${product.name} x${cantidad}`,
+      category: "Venta",
+      productId: product.id,
+    });
+  }
+
+  return (
+    <div className="min-h-screen w-full" style={{ background: C.bg, color: C.text, ...fontDisplay }}>
+      <style>{FONTS}</style>
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+        <Header saveError={saveError} />
+        <nav className="flex gap-2 mt-6 mb-6 overflow-x-auto pb-1">
+          <Tab active={tab === "resumen"} onClick={() => setTab("resumen")} icon={Receipt} label="Resumen" />
+          <Tab active={tab === "stock"} onClick={() => setTab("stock")} icon={Boxes} label="Stock" />
+          <Tab active={tab === "movimientos"} onClick={() => setTab("movimientos")} icon={TrendingUp} label="Movimientos" />
+        </nav>
+
+        {!loaded ? (
+          <div className="text-center py-20" style={{ color: C.textFaint, ...fontMono }}>Cargando datos…</div>
+        ) : tab === "resumen" ? (
+          <Resumen totals={totals} movements={movements} lowStock={lowStock} products={products} />
+        ) : tab === "stock" ? (
+          <Stock
+            products={products}
+            addProduct={addProduct}
+            updateProduct={updateProduct}
+            deleteProduct={deleteProduct}
+            registrarVenta={registrarVenta}
+          />
+        ) : (
+          <Movimientos movements={movements} products={products} addMovement={addMovement} deleteMovement={deleteMovement} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Header({ saveError }) {
+  return (
+    <header className="flex items-start justify-between">
+      <div>
+        <div className="flex items-center gap-2">
+          <Zap size={22} style={{ color: C.amber }} strokeWidth={2.5} />
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={fontDisplay}>GIGATECH</h1>
+        </div>
+        <p className="text-xs sm:text-sm mt-1" style={{ ...fontMono, color: C.textFaint }}>
+          Control de stock y caja
+        </p>
+      </div>
+      <div className="text-right">
+        <div className="flex items-center gap-1.5 justify-end">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: C.green }} />
+            <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: C.green }} />
+          </span>
+          <span className="text-[11px] uppercase tracking-wider" style={{ ...fontMono, color: C.textFaint }}>
+            {saveError ? "Sin guardar" : "Datos guardados"}
+          </span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ---------- Resumen (receipt-style summary) ----------
+
+function Resumen({ totals, movements, lowStock, products }) {
+  const recientes = movements.slice(0, 6);
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+      <div className="md:col-span-2">
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
+          <PunchEdge />
+          <div className="px-5 py-5">
+            <p className="text-center text-xs uppercase tracking-[0.2em] mb-4" style={{ ...fontMono, color: C.textFaint }}>
+              — Ticket de caja —
+            </p>
+            <Row label="Ingresos" value={`$ ${money(totals.ingresos)}`} color={C.green} />
+            <Row label="Egresos" value={`- $ ${money(totals.egresos)}`} color={C.red} />
+            <div style={{ borderTop: `1px dashed ${C.border}`, margin: "10px 0" }} />
+            <Row label="Ganancia neta" value={`$ ${money(totals.ganancia)}`} bold color={totals.ganancia >= 0 ? C.amber : C.red} />
+            <div style={{ borderTop: `1px dashed ${C.border}`, margin: "10px 0" }} />
+            <Row label="Stock a costo" value={`$ ${money(totals.valorStockCosto)}`} />
+            <Row label="Stock a venta" value={`$ ${money(totals.valorStockVenta)}`} />
+            <p className="text-center text-[11px] mt-4" style={{ ...fontMono, color: C.textFaint }}>
+              {products.length} producto{products.length !== 1 ? "s" : ""} · {movements.length} movimiento{movements.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <PunchEdge />
+        </div>
+      </div>
+
+      <div className="md:col-span-3 flex flex-col gap-5">
+        <Panel title="Movimientos recientes" icon={Receipt}>
+          {recientes.length === 0 ? (
+            <Empty text="Todavía no registraste movimientos." />
+          ) : (
+            <div className="flex flex-col divide-y" style={{ borderColor: C.border }}>
+              {recientes.map(m => (
+                <div key={m.id} className="flex items-center justify-between py-2" style={{ borderColor: C.border }}>
+                  <div>
+                    <p className="text-sm" style={fontDisplay}>{m.description || m.category}</p>
+                    <p className="text-[11px]" style={{ ...fontMono, color: C.textFaint }}>{fmtDate(m.date)} · {m.category}</p>
+                  </div>
+                  <span className="text-sm font-semibold" style={{ ...fontMono, color: m.type === "ingreso" ? C.green : C.red }}>
+                    {m.type === "ingreso" ? "+" : "-"}$ {money(m.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Stock bajo" icon={AlertTriangle} accent={lowStock.length > 0 ? C.amber : undefined}>
+          {lowStock.length === 0 ? (
+            <Empty text="Todo el stock está en niveles normales." />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {lowStock.map(p => (
+                <div key={p.id} className="flex items-center justify-between text-sm">
+                  <span style={fontDisplay}>{p.name}</span>
+                  <span style={{ ...fontMono, color: C.amber }}>{p.quantity} u.</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, bold, color }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className={`text-sm ${bold ? "font-semibold" : ""}`} style={fontDisplay}>{label}</span>
+      <span className={`text-sm ${bold ? "font-bold text-base" : ""}`} style={{ ...fontMono, color: color || C.text }}>{value}</span>
+    </div>
+  );
+}
+
+function Panel({ title, icon: Icon, children, accent, right }) {
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14 }} className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Icon size={15} style={{ color: accent || C.textDim }} />
+          <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ ...fontDisplay, color: accent || C.text }}>{title}</h3>
+        </div>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Empty({ text }) {
+  return <p className="text-sm py-2" style={{ ...fontMono, color: C.textFaint }}>{text}</p>;
+}
+
+// ---------- Stock tab ----------
+
+function Stock({ products, addProduct, updateProduct, deleteProduct, registrarVenta }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [sellFor, setSellFor] = useState(null);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2" style={fontDisplay}>
+          <Package size={18} style={{ color: C.amber }} /> Productos
+        </h2>
+        <Btn onClick={() => setShowForm(s => !s)}>
+          {showForm ? <X size={15} /> : <Plus size={15} />}
+          {showForm ? "Cerrar" : "Nuevo producto"}
+        </Btn>
+      </div>
+
+      {showForm && (
+        <ProductForm
+          onSubmit={(p) => { addProduct(p); setShowForm(false); }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {products.length === 0 ? (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14 }} className="p-8 text-center">
+          <Boxes size={28} className="mx-auto mb-2" style={{ color: C.textFaint }} />
+          <p style={{ ...fontMono, color: C.textFaint }}>Todavía no cargaste productos.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {products.map(p => (
+            <div key={p.id}>
+              {editingId === p.id ? (
+                <ProductForm
+                  initial={p}
+                  onSubmit={(patch) => { updateProduct(p.id, patch); setEditingId(null); }}
+                  onCancel={() => setEditingId(null)}
+                />
+              ) : (
+                <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14 }} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate" style={fontDisplay}>{p.name}</p>
+                      <p className="text-xs" style={{ ...fontMono, color: C.textFaint }}>
+                        {p.sku ? `SKU ${p.sku} · ` : ""}Costo $ {money(p.costPrice)} · Venta $ {money(p.salePrice)}
+                      </p>
+                    </div>
+                    <span
+                      className="shrink-0 px-2.5 py-1 rounded-md text-sm font-bold"
+                      style={{ ...fontMono, background: p.quantity <= (p.minStock ?? 3) ? C.redDim : C.surfaceAlt, color: p.quantity <= (p.minStock ?? 3) ? C.red : C.text }}
+                    >
+                      {p.quantity} u.
+                    </span>
+                  </div>
+
+                  {sellFor === p.id ? (
+                    <SellForm
+                      max={p.quantity}
+                      onCancel={() => setSellFor(null)}
+                      onConfirm={(qty) => { registrarVenta(p, qty); setSellFor(null); }}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      <Btn small variant="ghost" onClick={() => updateProduct(p.id, { quantity: p.quantity + 1 })}>+1 u.</Btn>
+                      <Btn small variant="ghost" onClick={() => updateProduct(p.id, { quantity: Math.max(0, p.quantity - 1) })}>-1 u.</Btn>
+                      <Btn small variant="green" onClick={() => setSellFor(p.id)} disabled={p.quantity === 0}>
+                        <ShoppingCart size={13} /> Vender
+                      </Btn>
+                      <Btn small variant="ghost" onClick={() => setEditingId(p.id)}><Pencil size={13} /></Btn>
+                      <Btn small variant="danger" onClick={() => deleteProduct(p.id)}><Trash2 size={13} /></Btn>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SellForm({ max, onConfirm, onCancel }) {
+  const [qty, setQty] = useState(1);
+  return (
+    <div className="flex items-end gap-2 mt-3 pt-3" style={{ borderTop: `1px dashed ${C.border}` }}>
+      <Field label={`Cantidad (máx. ${max})`}>
+        <Input type="number" min={1} max={max} value={qty} onChange={e => setQty(Number(e.target.value))} style={{ width: 90 }} />
+      </Field>
+      <Btn small variant="green" onClick={() => onConfirm(qty)} disabled={qty < 1 || qty > max}><Check size={13} /> Confirmar</Btn>
+      <Btn small variant="ghost" onClick={onCancel}>Cancelar</Btn>
+    </div>
+  );
+}
+
+function ProductForm({ initial, onSubmit, onCancel }) {
+  const [name, setName] = useState(initial?.name || "");
+  const [sku, setSku] = useState(initial?.sku || "");
+  const [quantity, setQuantity] = useState(initial?.quantity ?? 0);
+  const [costPrice, setCostPrice] = useState(initial?.costPrice ?? 0);
+  const [salePrice, setSalePrice] = useState(initial?.salePrice ?? 0);
+  const [minStock, setMinStock] = useState(initial?.minStock ?? 3);
+
+  function submit(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSubmit({ name: name.trim(), sku: sku.trim(), quantity: Number(quantity), costPrice: Number(costPrice), salePrice: Number(salePrice), minStock: Number(minStock) });
+  }
+
+  return (
+    <form onSubmit={submit} style={{ background: C.surfaceAlt, border: `1px solid ${C.borderLight}`, borderRadius: 14 }} className="p-4 flex flex-col gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="col-span-2 sm:col-span-1">
+          <Field label="Nombre"><Input value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Cargador USB-C" required /></Field>
+        </div>
+        <Field label="SKU (opcional)"><Input value={sku} onChange={e => setSku(e.target.value)} placeholder="GT-001" /></Field>
+        <Field label="Cantidad"><Input type="number" min={0} value={quantity} onChange={e => setQuantity(e.target.value)} /></Field>
+        <Field label="Precio costo"><Input type="number" min={0} step="0.01" value={costPrice} onChange={e => setCostPrice(e.target.value)} /></Field>
+        <Field label="Precio venta"><Input type="number" min={0} step="0.01" value={salePrice} onChange={e => setSalePrice(e.target.value)} /></Field>
+        <Field label="Alerta stock bajo"><Input type="number" min={0} value={minStock} onChange={e => setMinStock(e.target.value)} /></Field>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <Btn variant="ghost" onClick={onCancel}>Cancelar</Btn>
+        <Btn type="submit"><Check size={15} /> Guardar</Btn>
+      </div>
+    </form>
+  );
+}
+
+// ---------- Movimientos tab ----------
+
+function Movimientos({ movements, products, addMovement, deleteMovement }) {
+  const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState("todos");
+
+  const filtered = movements.filter(m => filter === "todos" || m.type === filter);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-lg font-semibold flex items-center gap-2" style={fontDisplay}>
+          <TrendingUp size={18} style={{ color: C.amber }} /> Movimientos de dinero
+        </h2>
+        <Btn onClick={() => setShowForm(s => !s)}>
+          {showForm ? <X size={15} /> : <Plus size={15} />}
+          {showForm ? "Cerrar" : "Nuevo movimiento"}
+        </Btn>
+      </div>
+
+      {showForm && (
+        <MovementForm
+          onSubmit={(m) => { addMovement(m); setShowForm(false); }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      <div className="flex gap-2">
+        {[["todos", "Todos"], ["ingreso", "Ingresos"], ["egreso", "Egresos"]].map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setFilter(val)}
+            className="px-3 py-1.5 rounded-full text-xs font-medium"
+            style={{
+              ...fontMono,
+              background: filter === val ? C.surfaceAlt : "transparent",
+              border: `1px solid ${filter === val ? C.borderLight : C.border}`,
+              color: filter === val ? C.text : C.textFaint,
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14 }} className="p-8 text-center">
+          <Receipt size={28} className="mx-auto mb-2" style={{ color: C.textFaint }} />
+          <p style={{ ...fontMono, color: C.textFaint }}>No hay movimientos para mostrar.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {filtered.map(m => (
+            <div key={m.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12 }} className="p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="shrink-0 h-8 w-8 rounded-full flex items-center justify-center"
+                  style={{ background: m.type === "ingreso" ? C.greenDim : C.redDim }}
+                >
+                  {m.type === "ingreso"
+                    ? <TrendingUp size={15} style={{ color: C.green }} />
+                    : <TrendingDown size={15} style={{ color: C.red }} />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={fontDisplay}>{m.description || m.category}</p>
+                  <p className="text-[11px]" style={{ ...fontMono, color: C.textFaint }}>{fmtDate(m.date)} · {m.category}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-bold" style={{ ...fontMono, color: m.type === "ingreso" ? C.green : C.red }}>
+                  {m.type === "ingreso" ? "+" : "-"}$ {money(m.amount)}
+                </span>
+                <button onClick={() => deleteMovement(m.id)} style={{ color: C.textFaint }}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MovementForm({ onSubmit, onCancel }) {
+  const [type, setType] = useState("ingreso");
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState(CATEGORIAS_INGRESO[0]);
+  const [date, setDate] = useState(todayISO());
+
+  const categorias = type === "ingreso" ? CATEGORIAS_INGRESO : CATEGORIAS_EGRESO;
+
+  function submit(e) {
+    e.preventDefault();
+    const n = Number(amount);
+    if (!n || n <= 0) return;
+    onSubmit({ type, amount: n, description: description.trim(), category, date });
+  }
+
+  return (
+    <form onSubmit={submit} style={{ background: C.surfaceAlt, border: `1px solid ${C.borderLight}`, borderRadius: 14 }} className="p-4 flex flex-col gap-3">
+      <div className="flex gap-2">
+        <Btn variant={type === "ingreso" ? "green" : "ghost"} onClick={() => { setType("ingreso"); setCategory(CATEGORIAS_INGRESO[0]); }}>
+          <TrendingUp size={14} /> Ingreso
+        </Btn>
+        <Btn variant={type === "egreso" ? "danger" : "ghost"} onClick={() => { setType("egreso"); setCategory(CATEGORIAS_EGRESO[0]); }}>
+          <TrendingDown size={14} /> Egreso
+        </Btn>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Monto"><Input type="number" min={0} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" required /></Field>
+        <Field label="Fecha"><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
+        <Field label="Categoría">
+          <Select value={category} onChange={e => setCategory(e.target.value)}>
+            {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+          </Select>
+        </Field>
+        <Field label="Descripción (opcional)"><Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Detalle" /></Field>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <Btn variant="ghost" onClick={onCancel}>Cancelar</Btn>
+        <Btn type="submit"><Check size={15} /> Registrar</Btn>
+      </div>
+    </form>
+  );
+}
