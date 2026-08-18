@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GigaTech · Stock y Caja</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F4EF; --surface:#FFFFFF; --surface-alt:#F1EFE8;
+    --border:#E3E0D6; --border-light:#D2CDBE;
+    --text:#22221F; --text-dim:#5B5A54; --text-faint:#8B897F;
+    --amber:#B5720F; --amber-dim:#F3E3C3;
+    --green:#2C8F5C; --green-dim:#DCF0E2;
+    --red:#C0392B; --red-dim:#F8DCD5;
+    --blue:#2E6DA4; --blue-dim:#DCE9F5;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px 60px;}
+  header{display:flex;align-items:flex-start;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:8px;}
+  .brand svg{color:var(--amber);}
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin:0;}
+  .tagline{font-size:13px;color:var(--text-faint);margin:4px 0 0;}
+  .status{display:flex;align-items:center;gap:6px;justify-content:flex-end;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);position:relative;}
+  .dot::after{content:'';position:absolute;inset:0;border-radius:50%;background:var(--green);opacity:.6;animation:ping 1.6s cubic-bezier(0,0,.2,1) infinite;}
+  @keyframes ping{75%,100%{transform:scale(2.2);opacity:0;}}
+  .status span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint);}
+
+  nav{display:flex;gap:8px;margin:24px 0;overflow-x:auto;padding-bottom:2px;}
+  .tab{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text-dim);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;}
+  .tab.active{background:var(--surface-alt);border-color:var(--border-light);color:var(--amber);}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;}
+  .grid5{display:grid;grid-template-columns:1fr;gap:20px;}
+  @media(min-width:768px){.grid5{grid-template-columns:2fr 3fr;}}
+  .receipt{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .punch{height:10px;background-image:radial-gradient(circle, var(--bg) 3.2px, transparent 3.6px);background-size:14px 14px;background-position:-7px center;}
+  .receipt-body{padding:20px;}
+  .receipt-title{text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.2em;color:var(--text-faint);margin:0 0 16px;}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:14px;}
+  .row.bold{font-weight:700;font-size:16px;}
+  .dashed{border-top:1px dashed var(--border);margin:10px 0;}
+  .receipt-foot{text-align:center;font-size:11px;color:var(--text-faint);margin-top:16px;}
+
+  .panel-title{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .empty{font-size:14px;color:var(--text-faint);padding:8px 0;}
+  .mv-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);}
+  .mv-row:first-child{border-top:none;}
+  .mv-desc{font-size:14px;}
+  .mv-meta{font-size:11px;color:var(--text-faint);}
+  .amt{font-family:'JetBrains Mono',monospace;font-weight:600;}
+
+  .section-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .section-head h2{display:flex;align-items:center;gap:8px;font-size:18px;margin:0;}
+  h2 svg{color:var(--amber);}
+
+  button.btn{font-family:inherit;font-size:14px;font-weight:500;border-radius:8px;padding:9px 16px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid transparent;}
+  .btn-primary{background:var(--amber);color:#FFFFFF;border-color:var(--amber);}
+  .btn-ghost{background:transparent;color:var(--text-dim);border-color:var(--border);}
+  .btn-danger{background:transparent;color:var(--red);border-color:var(--red-dim);}
+  .btn-green{background:var(--green);color:#FFFFFF;border-color:var(--green);}
+  .btn-blue{background:var(--blue);color:#FFFFFF;border-color:var(--blue);}
+  .btn-small{padding:6px 10px;font-size:12px;}
+  .btn[disabled]{opacity:.4;cursor:not-allowed;}
+
+  form.card{background:var(--surface-alt);border:1px solid var(--border-light);border-radius:14px;padding:16px;margin-bottom:16px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  @media(min-width:640px){.form-grid{grid-template-columns:1fr 1fr 1fr;}}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-family:'JetBrains Mono',monospace;}
+  .field input, .field select{font-family:'JetBrains Mono',monospace;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:14px;outline:none;}
+  .field input:focus, .field select:focus{border-color:var(--amber);}
+  .form-actions{display:flex;justify-content:flex-end;gap:8px;}
+
+  .product-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+  .product-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .product-name{font-weight:600;margin:0;}
+  .product-meta{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-faint);margin:2px 0 0;}
+  .qty-badge{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;padding:5px 10px;border-radius:8px;background:var(--surface-alt);white-space:nowrap;}
+  .qty-badge.low{background:var(--red-dim);color:var(--red);}
+  .product-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+
+  .filters{display:flex;gap:8px;margin-bottom:16px;}
+  .filter-pill{font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text-faint);cursor:pointer;}
+  .filter-pill.active{background:var(--surface-alt);border-color:var(--border-light);color:var(--text);}
+
+  .mv-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}
+  .mv-left{display:flex;align-items:center;gap:12px;min-width:0;}
+  .icon-circle{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .type-toggle{display:flex;gap:8px;margin-bottom:14px;}
+  .del-btn{background:none;border:none;color:var(--text-faint);cursor:pointer;padding:4px;}
+
+  .badge-pill{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .badge-pendiente{background:var(--amber-dim);color:var(--amber);}
+  .badge-pagado{background:var(--green-dim);color:var(--green);}
+
+  ::-webkit-scrollbar{height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <h1>GIGATECH</h1>
+      </div>
+      <p class="tagline mono">Control de stock y caja</p>
+    </div>
+    <div class="status">
+      <div class="dot"></div>
+      <span class="mono" id="saveStatus">Datos guardados</span>
+    </div>
+  </header>
+
+  <nav>
+    <button class="tab active" data-tab="resumen">Resumen</button>
+    <button class="tab" data-tab="stock">Stock</button>
+    <button class="tab" data-tab="movimientos">Movimientos</button>
+    <button class="tab" data-tab="fiados">Fiados</button>
+  </nav>
+
+  <section id="tab-resumen"></section>
+  <section id="tab-stock" style="display:none;"></section>
+  <section id="tab-movimientos" style="display:none;"></section>
+  <section id="tab-fiados" style="display:none;"></section>
+</div>
+
+<script>
+const STORAGE_KEY = "gigatech_data_v1";
+const CAT_EGRESO = ["Compra de mercadería","Alquiler","Servicios","Sueldos","Impuestos","Otro"];
+const CAT_INGRESO = ["Venta","Otro ingreso"];
+
+let state = { products: [], movements: [], credits: [] };
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) state = JSON.parse(raw);
+    if(!Array.isArray(state.credits)) state.credits = [];
+  }catch(e){}
+}
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    document.getElementById('saveStatus').textContent = 'Datos guardados';
+  }catch(e){
+    document.getElementById('saveStatus').textContent = 'Sin guardar';
+  }
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function money(n){ return (Number(n)||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(iso){ const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+function esc(s){ const d=document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+let currentTab = 'resumen';
+let showProductForm = false;
+let editingProductId = null;
+let sellForId = null;
+let creditForId = null;
+let showMovementForm = false;
+let movementFilter = 'todos';
+let movementTypeDraft = 'ingreso';
+let creditFilter = 'pendiente';
+
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    currentTab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b===btn));
+    document.getElementById('tab-resumen').style.display = currentTab==='resumen' ? '' : 'none';
+    document.getElementById('tab-stock').style.display = currentTab==='stock' ? '' : 'none';
+    document.getElementById('tab-movimientos').style.display = currentTab==='movimientos' ? '' : 'none';
+    document.getElementById('tab-fiados').style.display = currentTab==='fiados' ? '' : 'none';
+    renderAll();
+  });
+});
+
+function totals(){
+  const ingresos = state.movements.filter(m=>m.type==='ingreso').reduce((a,m)=>a+m.amount,0);
+  const egresos = state.movements.filter(m=>m.type==='egreso').reduce((a,m)=>a+m.amount,0);
+  const valorStockCosto = state.products.reduce((a,p)=>a+p.quantity*p.costPrice,0);
+  const valorStockVenta = state.products.reduce((a,p)=>a+p.quantity*p.salePrice,0);
+  const fiadoPendiente = state.credits.filter(c=>!c.paid).reduce((a,c)=>a+c.amount,0);
+  return { ingresos, egresos, ganancia: ingresos-egresos, valorStockCosto, valorStockVenta, fiadoPendiente };
+}
+function lowStockList(){ return state.products.filter(p => p.quantity <= (p.minStock ?? 3)); }
+function pendingCredits(){ return state.credits.filter(c=>!c.paid); }
+
+// ---------- RESUMEN ----------
+function renderResumen(){
+  const t = totals();
+  const recientes = state.movements.slice(0,6);
+  const low = lowStockList();
+  const pendCredits = pendingCredits();
+
+  const recientesHtml = recientes.length===0
+    ? `<p class="empty mono">Todavía no registraste movimientos.</p>`
+    : recientes.map(m=>`
+      <div class="mv-row">
+        <div>
+          <p class="mv-desc">${esc(m.description || m.category)}</p>
+          <p class="mv-meta mono">${fmtDate(m.date)} · ${esc(m.category)}</p>
+        </div>
+        <span class="amt" style="color:${m.type==='ingreso'?'var(--green)':'var(--red)'}">${m.type==='ingreso'?'+':'-'}$ ${money(m.amount)}</span>
+      </div>`).join('');
+
+  const lowHtml = low.length===0
+    ? `<p class="empty mono">Todo el stock está en niveles normales.</p>`
+    : low.map(p=>`
+      <div class="row"><span>${esc(p.name)}</span><span class="mono" style="color:var(--amber)">${p.quantity} u.</span></div>
+    `).join('');
+
+  const fiadoHtml = pendCredits.length===0
+    ? `<p class="empty mono">No hay fiados pendientes.</p>`
+    : pendCredits.slice(0,5).map(c=>`
+      <div class="row"><span>${esc(c.customer)} · ${esc(c.productName)}</span><span class="mono" style="color:var(--amber)">$ ${money(c.amount)}</span></div>
+    `).join('');
+
+  document.getElementById('tab-resumen').innerHTML = `
+    <div class="grid5">
+      <div>
+        <div class="receipt">
+          <div class="punch"></div>
+          <div class="receipt-body">
+            <p class="receipt-title">— Ticket de caja —</p>
+            <div class="row"><span>Ingresos</span><span class="amt" style="color:var(--green)">$ ${money(t.ingresos)}</span></div>
+            <div class="row"><span>Egresos</span><span class="amt" style="color:var(--red)">- $ ${money(t.egresos)}</span></div>
+            <div class="dashed"></div>
+            <div class="row bold"><span>Ganancia neta</span><span class="amt" style="color:${t.ganancia>=0?'var(--amber)':'var(--red)'}">$ ${money(t.ganancia)}</span></div>
+            <div class="dashed"></div>
+            <div class="row"><span>Stock a costo</span><span class="amt">$ ${money(t.valorStockCosto)}</span></div>
+            <div class="row"><span>Stock a venta</span><span class="amt">$ ${money(t.valorStockVenta)}</span></div>
+            <div class="row"><span>Fiado</span><span class="amt" style="color:var(--amber)">$ ${money(t.fiadoPendiente)}</span></div>
+            <p class="receipt-foot mono">${state.products.length} producto${state.products.length!==1?'s':''} · ${state.movements.length} movimiento${state.movements.length!==1?'s':''} · ${pendCredits.length} fiado${pendCredits.length!==1?'s':''} pendiente${pendCredits.length!==1?'s':''}</p>
+          </div>
+          <div class="punch"></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel" style="margin-bottom:20px;">
+          <p class="panel-title">Movimientos recientes</p>
+          ${recientesHtml}
+        </div>
+        <div class="panel" style="margin-bottom:20px;">
+          <p class="panel-title" style="color:${low.length>0?'var(--amber)':'var(--text)'}">Stock bajo</p>
+          ${lowHtml}
+        </div>
+        <div class="panel">
+          <p class="panel-title" style="color:${pendCredits.length>0?'var(--amber)':'var(--text)'}">Fiado</p>
+          ${fiadoHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ---------- STOCK ----------
+function productFormHtml(p){
+  const isEdit = !!p;
+  return `
+    <form class="card" id="productForm" data-id="${isEdit?p.id:''}">
+      <div class="form-grid">
+        <div class="field" style="grid-column:span 2;">
+          <label>Nombre</label>
+          <input name="name" required placeholder="Ej: Cargador USB-C" value="${isEdit?esc(p.name):''}">
+        </div>
+        <div class="field">
+          <label>SKU (opcional)</label>
+          <input name="sku" placeholder="GT-001" value="${isEdit?esc(p.sku||''):''}">
+        </div>
+        <div class="field">
+          <label>Cantidad</label>
+          <input name="quantity" type="number" min="0" value="${isEdit?p.quantity:0}">
+        </div>
+        <div class="field">
+          <label>Precio costo</label>
+          <input name="costPrice" type="number" min="0" step="0.01" value="${isEdit?p.costPrice:0}">
+        </div>
+        <div class="field">
+          <label>Precio venta</label>
+          <input name="salePrice" type="number" min="0" step="0.01" value="${isEdit?p.salePrice:0}">
+        </div>
+        <div class="field">
+          <label>Alerta stock bajo</label>
+          <input name="minStock" type="number" min="0" value="${isEdit?(p.minStock??3):3}">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="cancelProductForm">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderStock(){
+  const low3 = p => p.quantity <= (p.minStock ?? 3);
+  let html = `
+    <div class="section-head">
+      <h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7 12 3 4 7v10l8 4 8-4V7Z"/></svg>Productos</h2>
+      <button class="btn btn-primary" id="toggleProductForm">${showProductForm?'Cerrar':'+ Nuevo producto'}</button>
+    </div>
+  `;
+
+  if(showProductForm) html += productFormHtml(null);
+
+  if(state.products.length===0 && !showProductForm){
+    html += `<div class="panel" style="text-align:center;padding:32px;"><p class="empty mono">Todavía no cargaste productos.</p></div>`;
+  } else {
+    state.products.forEach(p=>{
+      if(editingProductId === p.id){
+        html += productFormHtml(p);
+        return;
+      }
+      const low = low3(p);
+      html += `
+        <div class="product-card">
+          <div class="product-top">
+            <div style="min-width:0;">
+              <p class="product-name">${esc(p.name)}</p>
+              <p class="product-meta">${p.sku?('SKU '+esc(p.sku)+' · '):''}Costo $ ${money(p.costPrice)} · Venta $ ${money(p.salePrice)}</p>
+            </div>
+            <span class="qty-badge ${low?'low':''}">${p.quantity} u.</span>
+          </div>
+          ${sellForId === p.id ? `
+            <div class="dashed"></div>
+            <div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px;">
+              <div class="field" style="width:110px;">
+                <label>Cantidad (máx. ${p.quantity})</label>
+                <input type="number" id="sellQty_${p.id}" min="1" max="${p.quantity}" value="1">
+              </div>
+              <button class="btn btn-green btn-small" data-confirm-sell="${p.id}">Confirmar</button>
+              <button class="btn btn-ghost btn-small" data-cancel-sell="${p.id}">Cancelar</button>
+            </div>
+          ` : ''}
+          ${creditForId === p.id ? `
+            <div class="dashed"></div>
+            <div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
+              <div class="field" style="width:160px;">
+                <label>Cliente</label>
+                <input type="text" id="creditCustomer_${p.id}" placeholder="Nombre del cliente">
+              </div>
+              <div class="field" style="width:110px;">
+                <label>Cantidad (máx. ${p.quantity})</label>
+                <input type="number" id="creditQty_${p.id}" min="1" max="${p.quantity}" value="1">
+              </div>
+              <button class="btn btn-blue btn-small" data-confirm-credit="${p.id}">Confirmar fiado</button>
+              <button class="btn btn-ghost btn-small" data-cancel-credit="${p.id}">Cancelar</button>
+            </div>
+          ` : ''}
+          ${(sellForId !== p.id && creditForId !== p.id) ? `
+            <div class="product-actions">
+              <button class="btn btn-ghost btn-small" data-plus="${p.id}">+1 u.</button>
+              <button class="btn btn-ghost btn-small" data-minus="${p.id}">-1 u.</button>
+              <button class="btn btn-green btn-small" data-sell="${p.id}" ${p.quantity===0?'disabled':''}>Vender</button>
+              <button class="btn btn-blue btn-small" data-credit="${p.id}" ${p.quantity===0?'disabled':''}>Fiado</button>
+              <button class="btn btn-ghost btn-small" data-edit="${p.id}">Editar</button>
+              <button class="btn btn-danger btn-small" data-delete="${p.id}">Eliminar</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+  }
+
+  document.getElementById('tab-stock').innerHTML = html;
+  bindStockEvents();
+}
+
+function bindStockEvents(){
+  const toggleBtn = document.getElementById('toggleProductForm');
+  if(toggleBtn) toggleBtn.onclick = ()=>{ showProductForm = !showProductForm; editingProductId=null; renderStock(); };
+
+  const cancelBtn = document.getElementById('cancelProductForm');
+  if(cancelBtn) cancelBtn.onclick = ()=>{ showProductForm=false; editingProductId=null; renderStock(); };
+
+  const form = document.getElementById('productForm');
+  if(form) form.onsubmit = (e)=>{
+    e.preventDefault();
+    const fd = new FormData(form);
+    const data = {
+      name: fd.get('name').trim(),
+      sku: fd.get('sku').trim(),
+      quantity: Number(fd.get('quantity')),
+      costPrice: Number(fd.get('costPrice')),
+      salePrice: Number(fd.get('salePrice')),
+      minStock: Number(fd.get('minStock')),
+    };
+    if(!data.name) return;
+    const id = form.dataset.id;
+    if(id){
+      const idx = state.products.findIndex(p=>p.id===id);
+      state.products[idx] = { ...state.products[idx], ...data };
+      editingProductId = null;
+    } else {
+      state.products.push({ id: uid(), ...data });
+      showProductForm = false;
+    }
+    save();
+    renderAll();
+  };
+
+  document.querySelectorAll('[data-plus]').forEach(b=>b.onclick=()=>{
+    const p = state.products.find(x=>x.id===b.dataset.plus);
+    p.quantity += 1; save(); renderAll();
+  });
+  document.querySelectorAll('[data-minus]').forEach(b=>b.onclick=()=>{
+    const p = state.products.find(x=>x.id===b.dataset.minus);
+    p.quantity = Math.max(0, p.quantity - 1); save(); renderAll();
+  });
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{
+    editingProductId = b.dataset.edit; showProductForm=false; renderStock();
+  });
+  document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{
+    state.products = state.products.filter(p=>p.id!==b.dataset.delete);
+    save(); renderAll();
+  });
+  document.querySelectorAll('[data-sell]').forEach(b=>b.onclick=()=>{
+    sellForId = b.dataset.sell; creditForId = null; renderStock();
+  });
+  document.querySelectorAll('[data-cancel-sell]').forEach(b=>b.onclick=()=>{
+    sellForId = null; renderStock();
+  });
+  document.querySelectorAll('[data-confirm-sell]').forEach(b=>b.onclick=()=>{
+    const id = b.dataset.confirmSell;
+    const p = state.products.find(x=>x.id===id);
+    const qtyInput = document.getElementById('sellQty_'+id);
+    const qty = Math.max(1, Math.min(Number(qtyInput.value), p.quantity));
+    p.quantity -= qty;
+    state.movements.unshift({
+      id: uid(), date: todayISO(), type:'ingreso',
+      amount: qty * p.salePrice,
+      description: `Venta: ${p.name} x${qty}`,
+      category: 'Venta', productId: p.id
+    });
+    sellForId = null;
+    save(); renderAll();
+  });
+
+  document.querySelectorAll('[data-credit]').forEach(b=>b.onclick=()=>{
+    creditForId = b.dataset.credit; sellForId = null; renderStock();
+  });
+  document.querySelectorAll('[data-cancel-credit]').forEach(b=>b.onclick=()=>{
+    creditForId = null; renderStock();
+  });
+  document.querySelectorAll('[data-confirm-credit]').forEach(b=>b.onclick=()=>{
+    const id = b.dataset.confirmCredit;
+    const p = state.products.find(x=>x.id===id);
+    const qtyInput = document.getElementById('creditQty_'+id);
+    const customerInput = document.getElementById('creditCustomer_'+id);
+    const qty = Math.max(1, Math.min(Number(qtyInput.value), p.quantity));
+    const customer = customerInput.value.trim();
+    if(!customer){ customerInput.focus(); return; }
+    p.quantity -= qty;
+    // No se registra como movimiento de caja: queda pendiente de cobro hasta que se marque como pagado.
+    state.credits.unshift({
+      id: uid(),
+      date: todayISO(),
+      productId: p.id,
+      productName: p.name,
+      quantity: qty,
+      amount: qty * p.salePrice,
+      customer,
+      paid: false,
+      paidDate: null
+    });
+    creditForId = null;
+    save(); renderAll();
+  });
+}
+
+// ---------- MOVIMIENTOS ----------
+function movementFormHtml(){
+  const cats = movementTypeDraft==='ingreso' ? CAT_INGRESO : CAT_EGRESO;
+  return `
+    <form class="card" id="movementForm">
+      <div class="type-toggle">
+        <button type="button" class="btn ${movementTypeDraft==='ingreso'?'btn-green':'btn-ghost'} btn-small" data-mtype="ingreso">Ingreso</button>
+        <button type="button" class="btn ${movementTypeDraft==='egreso'?'btn-danger':'btn-ghost'} btn-small" data-mtype="egreso">Egreso</button>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Monto</label><input name="amount" type="number" min="0" step="0.01" placeholder="0.00" required></div>
+        <div class="field"><label>Fecha</label><input name="date" type="date" value="${todayISO()}"></div>
+        <div class="field">
+          <label>Categoría</label>
+          <select name="category">${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        </div>
+        <div class="field" style="grid-column:span 2;"><label>Descripción (opcional)</label><input name="description" placeholder="Detalle"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="cancelMovementForm">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Registrar</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderMovimientos(){
+  const filtered = state.movements.filter(m => movementFilter==='todos' || m.type===movementFilter);
+  let html = `
+    <div class="section-head">
+      <h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></svg>Movimientos de dinero</h2>
+      <button class="btn btn-primary" id="toggleMovementForm">${showMovementForm?'Cerrar':'+ Nuevo movimiento'}</button>
+    </div>
+  `;
+
+  if(showMovementForm) html += movementFormHtml();
+
+  html += `
+    <div class="filters">
+      <button class="filter-pill ${movementFilter==='todos'?'active':''}" data-filter="todos">Todos</button>
+      <button class="filter-pill ${movementFilter==='ingreso'?'active':''}" data-filter="ingreso">Ingresos</button>
+      <button class="filter-pill ${movementFilter==='egreso'?'active':''}" data-filter="egreso">Egresos</button>
+    </div>
+  `;
+
+  if(filtered.length===0){
+    html += `<div class="panel" style="text-align:center;padding:32px;"><p class="empty mono">No hay movimientos para mostrar.</p></div>`;
+  } else {
+    filtered.forEach(m=>{
+      const isIn = m.type==='ingreso';
+      html += `
+        <div class="mv-item">
+          <div class="mv-left">
+            <div class="icon-circle" style="background:${isIn?'var(--green-dim)':'var(--red-dim)'}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${isIn?'var(--green)':'var(--red)'}" stroke-width="2">
+                ${isIn ? '<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>' : '<path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/>'}
+              </svg>
+            </div>
+            <div style="min-width:0;">
+              <p class="mv-desc" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.description || m.category)}</p>
+              <p class="mv-meta mono">${fmtDate(m.date)} · ${esc(m.category)}</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="amt" style="color:${isIn?'var(--green)':'var(--red)'}">${isIn?'+':'-'}$ ${money(m.amount)}</span>
+            <button class="del-btn" data-del-mv="${m.id}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>
+            </button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  document.getElementById('tab-movimientos').innerHTML = html;
+  bindMovementEvents();
+}
+
+function bindMovementEvents(){
+  const toggleBtn = document.getElementById('toggleMovementForm');
+  if(toggleBtn) toggleBtn.onclick = ()=>{ showMovementForm=!showMovementForm; renderMovimientos(); };
+
+  const cancelBtn = document.getElementById('cancelMovementForm');
+  if(cancelBtn) cancelBtn.onclick = ()=>{ showMovementForm=false; renderMovimientos(); };
+
+  document.querySelectorAll('[data-mtype]').forEach(b=>b.onclick=()=>{
+    movementTypeDraft = b.dataset.mtype; renderMovimientos();
+  });
+
+  const form = document.getElementById('movementForm');
+  if(form) form.onsubmit = (e)=>{
+    e.preventDefault();
+    const fd = new FormData(form);
+    const amount = Number(fd.get('amount'));
+    if(!amount || amount<=0) return;
+    state.movements.unshift({
+      id: uid(),
+      type: movementTypeDraft,
+      amount,
+      description: fd.get('description').trim(),
+      category: fd.get('category'),
+      date: fd.get('date') || todayISO(),
+    });
+    showMovementForm = false;
+    save(); renderAll();
+  };
+
+  document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{
+    movementFilter = b.dataset.filter; renderMovimientos();
+  });
+
+  document.querySelectorAll('[data-del-mv]').forEach(b=>b.onclick=()=>{
+    state.movements = state.movements.filter(m=>m.id!==b.dataset.delMv);
+    save(); renderAll();
+  });
+}
+
+// ---------- FIADOS ----------
+function renderFiados(){
+  const filtered = state.credits.filter(c=>{
+    if(creditFilter==='pendiente') return !c.paid;
+    if(creditFilter==='pagado') return c.paid;
+    return true;
+  });
+  const totalPendiente = state.credits.filter(c=>!c.paid).reduce((a,c)=>a+c.amount,0);
+
+  let html = `
+    <div class="section-head">
+      <h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>Fiados</h2>
+    </div>
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="row bold"><span>Fiado</span><span class="amt" style="color:var(--amber)">$ ${money(totalPendiente)}</span></div>
+    </div>
+    <div class="filters">
+      <button class="filter-pill ${creditFilter==='pendiente'?'active':''}" data-cfilter="pendiente">Pendientes</button>
+      <button class="filter-pill ${creditFilter==='pagado'?'active':''}" data-cfilter="pagado">Pagados</button>
+      <button class="filter-pill ${creditFilter==='todos'?'active':''}" data-cfilter="todos">Todos</button>
+    </div>
+  `;
+
+  if(filtered.length===0){
+    html += `<div class="panel" style="text-align:center;padding:32px;"><p class="empty mono">No hay fiados para mostrar.</p></div>`;
+  } else {
+    filtered.forEach(c=>{
+      html += `
+        <div class="mv-item">
+          <div class="mv-left">
+            <div class="icon-circle" style="background:${c.paid?'var(--green-dim)':'var(--amber-dim)'}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c.paid?'var(--green)':'var(--amber)'}" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>
+            </div>
+            <div style="min-width:0;">
+              <p class="mv-desc" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.customer)} · ${esc(c.productName)} x${c.quantity}</p>
+              <p class="mv-meta mono">${fmtDate(c.date)}${c.paid && c.paidDate ? ' · Pagado ' + fmtDate(c.paidDate) : ''}</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="badge-pill ${c.paid?'badge-pagado':'badge-pendiente'}">${c.paid?'Pagado':'Pendiente'}</span>
+            <span class="amt" style="color:var(--amber)">$ ${money(c.amount)}</span>
+            ${!c.paid ? `<button class="btn btn-green btn-small" data-pay-credit="${c.id}">Marcar pagado</button>` : ''}
+            <button class="del-btn" data-del-credit="${c.id}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>
+            </button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  document.getElementById('tab-fiados').innerHTML = html;
+  bindFiadosEvents();
+}
+
+function bindFiadosEvents(){
+  document.querySelectorAll('[data-cfilter]').forEach(b=>b.onclick=()=>{
+    creditFilter = b.dataset.cfilter; renderFiados();
+  });
+
+  document.querySelectorAll('[data-pay-credit]').forEach(b=>b.onclick=()=>{
+    const c = state.credits.find(x=>x.id===b.dataset.payCredit);
+    if(!c || c.paid) return;
+    c.paid = true;
+    c.paidDate = todayISO();
+    // Recién ahora se registra el ingreso en caja, al momento del cobro.
+    state.movements.unshift({
+      id: uid(), date: c.paidDate, type:'ingreso',
+      amount: c.amount,
+      description: `Cobro fiado: ${c.productName} x${c.quantity} (${c.customer})`,
+      category: 'Venta', productId: c.productId, creditId: c.id
+    });
+    save(); renderAll();
+  });
+
+  document.querySelectorAll('[data-del-credit]').forEach(b=>b.onclick=()=>{
+    const id = b.dataset.delCredit;
+    const c = state.credits.find(x=>x.id===id);
+    if(c && !c.paid){
+      if(!confirm('¿Cancelar este fiado? Esto no repone el stock vendido.')) return;
+    }
+    state.credits = state.credits.filter(x=>x.id!==id);
+    save(); renderAll();
+  });
+}
+
+function renderAll(){
+  renderResumen();
+  renderStock();
+  renderMovimientos();
+  renderFiados();
+}
+
+load();
+renderAll();
+</script>
+</body>
+</html>
